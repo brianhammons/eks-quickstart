@@ -1,0 +1,135 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Amazon EKS Cluster'
+Parameters:
+  ClusterName:
+    Description: The cluster name that will be used to create the EKS cluster.
+    Type: String
+
+  VPC:
+    Type: String
+    Description: VPC containing EKS Cluster.
+
+  SubnetIds:
+    Type: String
+    Description: Subnet IDs created for the VPC.
+  
+  SecurityGroups:
+    Type: String
+    Description: The security group created for VPC.
+
+  RoleArn:
+    Type: String
+    Description: The role that EKS will use to create AWS resources for Kubernetes clusters
+
+Resources:
+  EKSClusterLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-create-eks-cluster
+      Description: Custom resource created through cloudformation to spin up EKS cluster.
+      Handler: index.lambda_handler
+      Runtime: python2.7
+      Timeout: 5
+      Role: !Ref RoleArn
+      Code:
+        ZipFile: |
+            from __future__ import print_function
+            from botocore.vendored import requests
+            import cfnresponse
+            import sys, os, base64, datetime, hashlib, hmac, json
+
+            def lambda_handler(event, context):
+                response = {
+                    'StackId': event['StackId'],
+                    'RequestId': event['RequestId'],
+                    'LogicalResourceId': event['LogicalResourceId'],
+                    'Status': 'SUCCESS'
+                }
+                request_parameters = {
+                    "name": str(event['ResourceProperties']['ClusterName']),
+                    "roleArn": str(event['ResourceProperties']['RoleArn']),
+                    'resourcesVpcConfig': {
+                        'subnetIds': str(event['ResourceProperties']['SubnetIds']).split(','),
+                        'securityGroupIds': [str(event['ResourceProperties']['SecurityGroups'])],
+                        'vpcId': str(event['ResourceProperties']['VPC'])
+                    }
+                }
+
+                if event['RequestType'] == 'Create':
+                  method = 'POST'
+                  path = '/clusters'
+
+                if event['RequestType'] == 'Delete':
+                  method = 'DELETE'
+                  path = '/clusters/' + request_parameters['name']
+
+                request_parameters = json.dumps(request_parameters)
+                host = 'eks.us-west-2.amazonaws.com'
+                region = event['ResourceProperties']['Region']
+                service = 'eks'
+                endpoint = 'https://eks.us-west-2.amazonaws.com'
+                request_url = endpoint + path
+                content_type = 'application/json'
+
+                def sign(key, msg):
+                    return hmac.new(key, msg.encode("utf-8"), hashlib.sha256).digest()
+
+                def getSignatureKey(key, date_stamp, regionName, serviceName):
+                    kDate = sign(('AWS4' + key).encode('utf-8'), date_stamp)
+                    kRegion = sign(kDate, regionName)
+                    kService = sign(kRegion, serviceName)
+                    kSigning = sign(kService, 'aws4_request')
+                    return kSigning
+                
+                t = datetime.datetime.utcnow()
+                amz_date = t.strftime('%Y%m%dT%H%M%SZ')
+                date_stamp = t.strftime('%Y%m%d')
+
+                canonical_uri = path
+                canonical_querystring = ''               
+                canonical_headers = 'content-type:' + content_type + '\n' + 'host:' + host + '\n' + 'x-amz-date:' + amz_date + '\n'
+                signed_headers = 'content-type;host;x-amz-date'          
+                
+                access_key = os.environ['AWS_ACCESS_KEY_ID']
+                secret_key = os.environ['AWS_SECRET_ACCESS_KEY']
+                security_token = os.environ['AWS_SECURITY_TOKEN']
+
+                payload_hash = hashlib.sha256(request_parameters).hexdigest()
+                canonical_request = method + '\n' + canonical_uri + '\n' + canonical_querystring + '\n' + canonical_headers + '\n' + signed_headers + '\n' + payload_hash
+                algorithm = 'AWS4-HMAC-SHA256'
+                credential_scope = date_stamp + '/' + region + '/' + service + '/' + 'aws4_request'
+                string_to_sign = algorithm + '\n' +  amz_date + '\n' +  credential_scope + '\n' +  hashlib.sha256(canonical_request).hexdigest()
+                signing_key = getSignatureKey(secret_key, date_stamp, region, service)
+                signature = hmac.new(signing_key, (string_to_sign).encode('utf-8'), hashlib.sha256).hexdigest()
+                authorization_header = algorithm + ' ' + 'Credential=' + access_key + '/' + credential_scope + ', ' +  'SignedHeaders=' + signed_headers + ', ' + 'Signature=' + signature
+                
+                headers = {'Content-Type':content_type,
+                       'Host':host,
+                       'X-Amz-Date':amz_date,
+                       'Authorization':authorization_header,
+                       'X-Amz-Security-Token':security_token}
+                try:
+                  if event['RequestType'] == 'Create':
+                    r = requests.post(request_url, data=request_parameters, headers=headers)
+                  if event['RequestType'] == 'Delete':
+                    r = requests.delete(request_url, data=request_parameters, headers=headers)
+                  responseData = json.loads(r.text)
+                  print('Response code: %d' % r.status_code)
+                  return cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, "CustomResourcePhysicalID")
+                except Exception as E:
+                  response['Reason'] = 'Event Failed - See CloudWatch logs for the Lamba function backing the custom resource for details'
+                  return cfnresponse.send(event, context, cfnresponse.FAILED, responseData, "CustomResourcePhysicalID")
+
+  EKSCluster:
+    Type: Custom::EKSClusterLambda
+    Properties:
+      ServiceToken: !GetAtt EKSClusterLambda.Arn
+      ClusterName: !Ref ClusterName
+      Region: !Ref "AWS::Region"
+      RoleArn: !Ref RoleArn
+      VPC: !Ref VPC
+      SecurityGroups: !Ref SecurityGroups
+      SubnetIds: !Ref SubnetIds
+
+

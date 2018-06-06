@@ -1,0 +1,68 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Amazon EKS Master Template'
+Parameters:
+  ClusterName:
+    Description: The cluster name that will be used to create the EKS cluster.
+    Type: String
+
+  VpcBlock:
+    Type: String
+    Default: 192.168.0.0/16
+    Description: The CIDR range for the VPC. This should be a valid private (RFC 1918) CIDR range.
+
+  Subnet01Block:
+    Type: String
+    Default: 192.168.64.0/18
+    Description: CidrBlock for subnet 01 within the VPC
+
+  Subnet02Block:
+    Type: String
+    Default: 192.168.128.0/18
+    Description: CidrBlock for subnet 02 within the VPC
+
+  S3ConfigStore:
+    Type: String
+    Description: Bucket name where EKS configuration files are stored.
+
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: Can contain only ASCII characters.
+
+  SSHLocation:
+    Description: ' The IP address range that can be used to SSH to the EC2 instances'
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 0.0.0.0/0
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  
+Resources:
+  EKSVPC:
+    Properties:
+      Parameters:
+        ClusterName: !Ref 'ClusterName'
+        VpcBlock: !Ref 'VpcBlock'
+        Subnet01Block: !Ref 'Subnet01Block'
+        Subnet02Block: !Ref 'Subnet02Block'
+      TemplateURL: 'https://s3-us-west-2.amazonaws.com/eks-quickstart-demo/amazon-eks-vpc.yaml'
+    Type: AWS::CloudFormation::Stack
+  EKSServiceRole:
+    Properties:
+      TemplateURL: 'https://amazon-eks.s3-us-west-2.amazonaws.com/1.10.0/2018-05-09/amazon-eks-service-role.yaml'
+    Type: AWS::CloudFormation::Stack
+  EKSCluster:
+    Properties:
+      Parameters:
+        ClusterName: !Ref 'ClusterName'
+        S3ConfigStore: !Ref 'S3ConfigStore'
+        RoleArn: !GetAtt [EKSServiceRole, Outputs.RoleArn]
+        VPC: !GetAtt [EKSVPC, Outputs.VPC]
+        SecurityGroups: !GetAtt [EKSVPC, Outputs.SecurityGroups]
+        SubnetIds: !GetAtt [EKSVPC, Outputs.SubnetIds]
+      TemplateURL: 'https://s3-us-west-2.amazonaws.com/eks-quickstart-demo/amazon-eks-cluster.yaml'
+    DependsOn: [EKSVPC]
+    Type: AWS::CloudFormation::Stack
+        

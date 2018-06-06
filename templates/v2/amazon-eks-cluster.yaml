@@ -1,0 +1,33 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Amazon EKS Cluster'
+Parameters:
+  ClusterName:
+    Description: The cluster name that will be used to create the EKS cluster.
+    Type: String
+
+  VPC:
+    Type: String
+    Description: VPC containing EKS Cluster.
+
+  SubnetIds:
+    Type: String
+    Description: Subnet IDs created for the VPC.
+  
+  SecurityGroups:
+    Type: String
+    Description: The security group created for VPC.
+
+  RoleArn:
+    Type: String
+    Description: The role that EKS will use to create AWS resources for Kubernetes clusters
+
+Resources:
+  EKSCluster:
+    Type: "AWS::EKS::Cluster"
+    Properties:
+      Name: !Ref ClusterName
+      RoleArn: !Ref RoleArn
+      ResourcesVpcConfig:
+        SecurityGroupIds: [ !Ref SecurityGroups ]
+        SubnetIds: !Split [ "," , !Ref SubnetIds ]
