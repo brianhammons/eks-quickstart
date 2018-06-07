@@ -1,16 +1,43 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Amazon EKS Node Group'
-
+Description: 'Amazon EKS QuickStart - This will create a new VPC, IAM service role, cluster and worker nodes.'
 Parameters:
+  ClusterName:
+    Description: The cluster name that will be used to create the EKS cluster.
+    Type: String
+
+  VpcBlock:
+    Type: String
+    Default: 192.168.0.0/16
+    Description: The CIDR range for the VPC. This should be a valid private (RFC 1918) CIDR range.
+
+  Subnet01Block:
+    Type: String
+    Default: 192.168.64.0/18
+    Description: CidrBlock for subnet 01 within the VPC
+
+  Subnet02Block:
+    Type: String
+    Default: 192.168.128.0/18
+    Description: CidrBlock for subnet 02 within the VPC
+
+  Subnet03Block:
+    Type: String
+    Default: 192.168.192.0/18
+    Description: CidrBlock for subnet 03 within the VPC
 
   KeyName:
-    Description: The EC2 Key Pair to allow SSH access to the instances
-    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: Can contain only ASCII characters.
 
   NodeImageId:
     Type: AWS::EC2::Image::Id
-    Description: AMI id for the node instances.
+    Description: AMI id for the node instances. Id "ami-73a6e20b" is in us-west-2 and "ami-dea4d5a1" is in us-east-1.
+    Default: ami-73a6e20b
+    AllowedValues:
+    - ami-73a6e20b
+    - ami-dea4d5a1
 
   NodeInstanceType:
     Description: EC2 instance type for the node instances
@@ -84,24 +111,8 @@ Parameters:
     Description: Maximum size of Node Group ASG.
     Default: 3
 
-  ClusterName:
-    Description: The cluster name provided when the cluster was created.  If it is incorrect, nodes will not be able to join the cluster.
-    Type: String
-
   NodeGroupName:
     Description: Unique identifier for the Node Group.
-    Type: String
-
-  ClusterControlPlaneSecurityGroup:
-    Description: The security group of the cluster control plane.
-    Type: AWS::EC2::SecurityGroup::Id
-
-  VpcId:
-    Description: The VPC of the worker instances
-    Type: AWS::EC2::VPC::Id
-
-  Subnets:
-    Description: The subnets where workers can be created.
     Type: String
 
 Mappings:
@@ -225,7 +236,14 @@ Metadata:
           default: "EKS Cluster"
         Parameters:
           - ClusterName
-          - ClusterControlPlaneSecurityGroup
+      -
+        Label:
+          default: "EKS Cluster Configuration"
+        Parameters:
+          - VpcBlock
+          - Subnet01Block
+          - Subnet02Block
+          - Subnet03Block
       -
         Label:
           default: "Worker Node Configuration"
@@ -236,14 +254,160 @@ Metadata:
           - NodeInstanceType
           - NodeImageId
           - KeyName
-      -
-        Label:
-          default: "Worker Network Configuration"
-        Parameters:
-          - VpcId
-          - Subnets
-
+  
 Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:  !Ref VpcBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-VPC'
+  InternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+  VPCGatewayAttachment:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Public Subnets
+      - Key: Network
+        Value: Public
+  Route:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  Subnet01:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 01
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - '0'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: Subnet01Block
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-Subnet01"
+  Subnet02:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 02
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - '1'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: Subnet02Block
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-Subnet02"
+  Subnet03:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 03
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - '2'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: Subnet03Block
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-Subnet03"
+  Subnet01RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet01
+      RouteTableId: !Ref RouteTable
+  Subnet02RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet02
+      RouteTableId: !Ref RouteTable
+  Subnet03RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet03
+      RouteTableId: !Ref RouteTable
+  ControlPlaneSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Cluster communication with worker nodes
+      VpcId: !Ref VPC
+
+  AWSServiceRoleForAmazonEKS:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Service:
+            - eks.amazonaws.com
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+      - "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+      - "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
+      - "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+      Policies:
+      - PolicyName: AmazonEKSCustomResourcePolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - eks:CreateCluster
+            - eks:DeleteCluster
+            - eks:DescribeCluster
+            - eks:ListClusters
+            - iam:GetRole
+            - iam:PassRole
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            - s3:GetObject
+            - s3:PutObject
+            - s3:GetObjectVersion
+            Resource: "*"
+
+  EKSCluster:
+    Type: "AWS::EKS::Cluster"
+    Properties:
+      Name: !Ref ClusterName
+      RoleArn: !GetAtt AWSServiceRoleForAmazonEKS.Arn
+      ResourcesVpcConfig:
+        SecurityGroupIds: [ !Join [ ",", [ !Ref ControlPlaneSecurityGroup ] ] ]
+        SubnetIds: !Split [ "," , !Join [ ",", [ !Ref Subnet01, !Ref Subnet02, !Ref Subnet03 ] ] ]
+    DependsOn: [VPC]
 
   NodeInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -251,7 +415,7 @@ Resources:
       Path: "/"
       Roles:
       - !Ref NodeInstanceRole
-
+    DependsOn: [EKSCluster]
   NodeInstanceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -269,17 +433,17 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
         - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
-
+    DependsOn: [EKSCluster]
   NodeSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security group for all nodes in the cluster
       VpcId:
-        !Ref VpcId
+        !Ref VPC
       Tags:
       - Key: !Sub "kubernetes.io/cluster/${ClusterName}"
         Value: 'owned'
-
+    DependsOn: [EKSCluster]
   NodeSecurityGroupIngress:
     Type: AWS::EC2::SecurityGroupIngress
     DependsOn: NodeSecurityGroup
@@ -290,40 +454,36 @@ Resources:
       IpProtocol: '-1'
       FromPort: 0
       ToPort: 65535
-
   NodeSecurityGroupFromControlPlaneIngress:
     Type: AWS::EC2::SecurityGroupIngress
     DependsOn: NodeSecurityGroup
     Properties:
       Description: Allow worker Kubelets and pods to receive communication from the cluster control plane
       GroupId: !Ref NodeSecurityGroup
-      SourceSecurityGroupId: !Ref ClusterControlPlaneSecurityGroup
+      SourceSecurityGroupId: !Join [ ",", [ !Ref ControlPlaneSecurityGroup ] ]
       IpProtocol: tcp
       FromPort: 1025
       ToPort: 65535
-
   ControlPlaneEgressToNodeSecurityGroup:
     Type: AWS::EC2::SecurityGroupEgress
     DependsOn: NodeSecurityGroup
     Properties:
       Description: Allow the cluster control plane to communicate with worker Kubelet and pods
-      GroupId: !Ref ClusterControlPlaneSecurityGroup
+      GroupId: !Join [ ",", [ !Ref ControlPlaneSecurityGroup ] ]
       DestinationSecurityGroupId: !Ref NodeSecurityGroup
       IpProtocol: tcp
       FromPort: 1025
       ToPort: 65535
-
   ClusterControlPlaneSecurityGroupIngress:
     Type: AWS::EC2::SecurityGroupIngress
     DependsOn: NodeSecurityGroup
     Properties:
       Description: Allow pods to communicate with the cluster API Server
-      GroupId: !Ref ClusterControlPlaneSecurityGroup
+      GroupId: !Join [ ",", [ !Ref ControlPlaneSecurityGroup ] ]
       SourceSecurityGroupId: !Ref NodeSecurityGroup
       IpProtocol: tcp
       ToPort: 443
       FromPort: 443
-
   NodeGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -332,7 +492,7 @@ Resources:
       MinSize: !Ref NodeAutoScalingGroupMinSize
       MaxSize: !Ref NodeAutoScalingGroupMaxSize
       VPCZoneIdentifier:
-        !Split [ "|" , !Ref Subnets ]
+        !Split [ "|" , !Join [ ",", [ !Ref Subnet01, !Ref Subnet02, !Ref Subnet03 ] ] ]
       Tags:
       - Key: Name
         Value: !Sub "${ClusterName}-${NodeGroupName}-Node"
@@ -344,7 +504,7 @@ Resources:
       AutoScalingRollingUpdate:
         MinInstancesInService: '1'
         MaxBatchSize: '1'
-
+    DependsOn: [EKSCluster]
   NodeLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
@@ -392,8 +552,21 @@ Resources:
               "         --region ", { Ref: "AWS::Region" }, "\n"
             ]
           ]
+    DependsOn: [EKSCluster]
 
 Outputs:
+  SubnetIds:
+    Description: All subnets in the VPC
+    Value: !Join [ ",", [ !Ref Subnet01, !Ref Subnet02, !Ref Subnet03 ] ]
+  SecurityGroups:
+    Description: Security group for the cluster control plane communication with worker nodes
+    Value: !Join [ ",", [ !Ref ControlPlaneSecurityGroup ] ]
+  VpcId:
+    Description: The VPC Id
+    Value: !Ref VPC
+  RoleArn:
+    Description: The role that EKS will use to create AWS resources for Kubernetes clusters
+    Value: !GetAtt AWSServiceRoleForAmazonEKS.Arn
   NodeInstanceRole:
     Description: The node instance role
     Value: !GetAtt NodeInstanceRole.Arn
