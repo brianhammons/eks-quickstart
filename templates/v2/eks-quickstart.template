@@ -115,6 +115,10 @@ Parameters:
     Description: Unique identifier for the Node Group.
     Type: String
 
+  S3Bucket:
+    Description: Unique identifier for the S3 bucket storing the eks configuration files.
+    Type: String
+
 Mappings:
   MaxPodsPerNode:
     c4.large:
@@ -515,6 +519,7 @@ Resources:
       KeyName: !Ref KeyName
       SecurityGroups:
       - !Ref NodeSecurityGroup
+      S3Bucket: !Ref S3Bucket
       UserData:
         Fn::Base64:
           Fn::Join: [
@@ -544,6 +549,9 @@ Resources:
               "sed -i s,DNS_CLUSTER_IP,$DNS_CLUSTER_IP,g  /etc/systemd/system/kubelet.service", "\n",
               "sed -i s,CERTIFICATE_AUTHORITY_FILE,$CA_CERTIFICATE_FILE_PATH,g /var/lib/kubelet/kubeconfig" , "\n",
               "sed -i s,CLIENT_CA_FILE,$CA_CERTIFICATE_FILE_PATH,g  /etc/systemd/system/kubelet.service" , "\n",
+              "aws s3 mb s3://", { Ref: S3Bucket },"", "\n",
+              "aws s3api put-bucket-versioning --bucket ", { Ref: S3Bucket }," --versioning-configuration Status=Enabled", "\n",
+              "aws s3 cp /var/lib/kubelet/kubeconfig s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/kubeconfig", "\n",
               "systemctl daemon-reload", "\n",
               "systemctl restart kubelet", "\n",
               "/opt/aws/bin/cfn-signal -e $? ",
