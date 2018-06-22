@@ -553,6 +553,8 @@ Resources:
               "aws s3api put-bucket-versioning --bucket ", { Ref: S3Bucket }," --versioning-configuration Status=Enabled", "\n",
               "aws s3 cp /var/lib/kubelet/kubeconfig s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/kubeconfig", "\n",
               "aws s3 cp /etc/kubernetes/pki/ca.crt s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/ca.crt", "\n",
+              "aws s3 cp /etc/systemd/system/kubelet.service s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/kubelet.service", "\n",
+              "aws s3 cp /tmp/describe_cluster_result.json s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/describe_cluster_result.json", "\n",
               "systemctl daemon-reload", "\n",
               "systemctl restart kubelet", "\n",
               "/opt/aws/bin/cfn-signal -e $? ",
