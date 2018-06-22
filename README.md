@@ -1,7 +1,7 @@
 # eks-sandbox
 The EKS Quickstart will quickly spin up an EKS cluster and worker nodes through cloudformation. This requires AWS CLI version 1.15.32, kubectl version 1.10 and the Heptio authenticator.
 
-Click [here](https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=eks-quickstart&templateURL=https://s3-us-west-2.amazonaws.com/eks-quickstart-demo/v2/eks-quickstart.template) to deploy the cloudformation template in the AWS Console.
+Click [here](https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=eks-quickstart&templateURL=https://s3-us-east-1.amazonaws.com/eks-quickstart-demo/v2/eks-quickstart.template) to deploy the cloudformation template in the AWS Console.
 
 QuickStart Proposed Steps:
 

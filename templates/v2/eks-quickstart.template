@@ -33,8 +33,8 @@ Parameters:
 
   NodeImageId:
     Type: AWS::EC2::Image::Id
-    Description: AMI id for the node instances. Id "ami-73a6e20b" is in us-west-2 and "ami-dea4d5a1" is in us-east-1.
-    Default: ami-73a6e20b
+    Description: AMI id for the node instances. Id "ami-73a6e20b" is in us-west-2 and "ami-dea4d5a1" is in us-east-1. Default is set to us-east-1.
+    Default: ami-dea4d5a1
     AllowedValues:
     - ami-73a6e20b
     - ami-dea4d5a1
@@ -437,6 +437,7 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
         - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
     DependsOn: [EKSCluster]
   NodeSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -519,7 +520,6 @@ Resources:
       KeyName: !Ref KeyName
       SecurityGroups:
       - !Ref NodeSecurityGroup
-      S3Bucket: !Ref S3Bucket
       UserData:
         Fn::Base64:
           Fn::Join: [
@@ -552,6 +552,7 @@ Resources:
               "aws s3 mb s3://", { Ref: S3Bucket },"", "\n",
               "aws s3api put-bucket-versioning --bucket ", { Ref: S3Bucket }," --versioning-configuration Status=Enabled", "\n",
               "aws s3 cp /var/lib/kubelet/kubeconfig s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/kubeconfig", "\n",
+              "aws s3 cp /etc/kubernetes/pki/ca.crt s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/ca.crt", "\n",
               "systemctl daemon-reload", "\n",
               "systemctl restart kubelet", "\n",
               "/opt/aws/bin/cfn-signal -e $? ",
