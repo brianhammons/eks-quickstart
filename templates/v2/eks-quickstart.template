@@ -42,7 +42,7 @@ Parameters:
   NodeInstanceType:
     Description: EC2 instance type for the node instances
     Type: String
-    Default: t2.medium
+    Default: c5.large
     AllowedValues:
     - t2.small
     - t2.medium
@@ -530,13 +530,17 @@ Resources:
               "CA_CERTIFICATE_FILE_PATH=$CA_CERTIFICATE_DIRECTORY/ca.crt", "\n",
               "MODEL_DIRECTORY_PATH=~/.aws/eks", "\n",
               "MODEL_FILE_PATH=$MODEL_DIRECTORY_PATH/eks-2017-11-01.normal.json", "\n",
+              "KUBE_DIRECTORY_PATH=/tmp/kube", "\n",
               "mkdir -p $CA_CERTIFICATE_DIRECTORY", "\n",
               "mkdir -p $MODEL_DIRECTORY_PATH", "\n",
+              "mkdir -p $KUBE_DIRECTORY_PATH", "\n",
               "curl -o $MODEL_FILE_PATH https://s3-us-west-2.amazonaws.com/amazon-eks/1.10.3/2018-06-05/eks-2017-11-01.normal.json", "\n",
+              "curl -o $KUBE_DIRECTORY_PATH https://amazon-eks.s3-us-west-2.amazonaws.com/1.10.3/2018-06-05/aws-auth-cm.yaml", "\n",
               "aws configure add-model --service-model file://$MODEL_FILE_PATH --service-name eks", "\n",
               "aws eks describe-cluster --region=", { Ref: "AWS::Region" }," --name=", { Ref: ClusterName }," --query 'cluster.{certificateAuthorityData: certificateAuthority.data, endpoint: endpoint}' > /tmp/describe_cluster_result.json", "\n",
               "cat /tmp/describe_cluster_result.json | grep certificateAuthorityData | awk '{print $2}' | sed 's/[,\"]//g' | base64 -d >  $CA_CERTIFICATE_FILE_PATH", "\n",
               "MASTER_ENDPOINT=$(cat /tmp/describe_cluster_result.json | grep endpoint | awk '{print $2}' | sed 's/[,\"]//g')", "\n",
+              "MASTER_CA=$(cat /tmp/describe_cluster_result.json | grep certificateAuthorityData | awk '{print $2}' | sed 's/[,\"]//g')", "\n",
               "INTERNAL_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)", "\n",
               "sed -i s,MASTER_ENDPOINT,$MASTER_ENDPOINT,g /var/lib/kubelet/kubeconfig", "\n",
               "sed -i s,CLUSTER_NAME,", { Ref: ClusterName }, ",g /var/lib/kubelet/kubeconfig", "\n",
@@ -549,12 +553,17 @@ Resources:
               "sed -i s,DNS_CLUSTER_IP,$DNS_CLUSTER_IP,g  /etc/systemd/system/kubelet.service", "\n",
               "sed -i s,CERTIFICATE_AUTHORITY_FILE,$CA_CERTIFICATE_FILE_PATH,g /var/lib/kubelet/kubeconfig" , "\n",
               "sed -i s,CLIENT_CA_FILE,$CA_CERTIFICATE_FILE_PATH,g  /etc/systemd/system/kubelet.service" , "\n",
+              "KUBELET_CONTEXT=kubelet", "\n",
+              "AWS_CONTEXT=aws", "\n",
+              "AUTH_ROLE=<ARN of instance role (not instance profile)>", "\n",
+              "cp /var/lib/kubelet/kubeconfig $KUBE_DIRECTORY_PATH/kubeconfig", "\n",
+              "sed -i s,$KUBELET_CONTEXT,$AWS_CONTEXT,g $KUBE_DIRECTORY_PATH/kubeconfig", "\n",
+              "sed -i s,$CA_CERTIFICATE_FILE_PATH,$MASTER_CA,g $KUBE_DIRECTORY_PATH/kubeconfig", "\n",
+              "sed -i s,$AUTH_ROLE,{ !GetAtt NodeInstanceRole.Arn },g $KUBE_DIRECTORY_PATH/aws-auth-cm.yaml", "\n",
               "aws s3 mb s3://", { Ref: S3Bucket },"", "\n",
               "aws s3api put-bucket-versioning --bucket ", { Ref: S3Bucket }," --versioning-configuration Status=Enabled", "\n",
-              "aws s3 cp /var/lib/kubelet/kubeconfig s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/kubeconfig", "\n",
-              "aws s3 cp /etc/kubernetes/pki/ca.crt s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/ca.crt", "\n",
-              "aws s3 cp /etc/systemd/system/kubelet.service s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/kubelet.service", "\n",
-              "aws s3 cp /tmp/describe_cluster_result.json s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/describe_cluster_result.json", "\n",
+              "aws s3 cp $KUBE_DIRECTORY_PATH/kubeconfig s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/kubeconfig", "\n",
+              "aws s3 cp $KUBE_DIRECTORY_PATH/aws-auth-cm.yaml s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/aws-auth-cm.yaml", "\n",
               "systemctl daemon-reload", "\n",
               "systemctl restart kubelet", "\n",
               "/opt/aws/bin/cfn-signal -e $? ",
