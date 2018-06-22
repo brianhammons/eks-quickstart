@@ -34,7 +34,7 @@ Parameters:
   NodeImageId:
     Type: AWS::EC2::Image::Id
     Description: AMI id for the node instances. Id "ami-73a6e20b" is in us-west-2 and "ami-dea4d5a1" is in us-east-1. Default is set to us-east-1.
-    Default: ami-dea4d5a1
+    Default: ami-73a6e20b
     AllowedValues:
     - ami-73a6e20b
     - ami-dea4d5a1
