@@ -13,33 +13,31 @@ $ aws s3 mb $EKS_STATE_STORE
 $ aws s3api put-bucket-versioning --bucket $S3_BUCKET --versioning-configuration Status=Enabled
 ```
 
-2. Set configuration Variables:
+2. Set configuration variables for the EKS cluster name and ssh key for worker node access.
 ```
 $ export CLUSTER_NAME=eks-demo
 $ export SSH_KEY=eks-demo-key
 ```
 
-2. You may run the cloudformation template from the link above or using the command line. For example, the following will create and provision a complete EKS cluster called eks-demo
+3. You may run the cloudformation template from the link above or using the command line.
 ```
 $ aws cloudformation create-stack --stack-name $CLUSTER_NAME-stack \
 --template-url https://s3-us-west-2.amazonaws.com/eks-quickstart-demo/v2/eks-quickstart.yaml \
 --parameters ParameterKey=ClusterName,ParameterValue=$CLUSTER_NAME ParameterKey=NodeGroupName,ParameterValue=$CLUSTER_NAME-nodegroup ParameterKey=KeyName,ParameterValue=$SSH_KEY ParameterKey=S3Bucket,ParameterValue=$S3_BUCKET \
 --capabilities "CAPABILITY_IAM"
-```
+```	
 
-Note: EC2 Nodes require existing ssh keypair for access. You can create one and download it from the AWS EC2 console.
-
-3. Create local Kubernetes configuration directory and download EKS config file after cluster is ready. (Should be complete in ~9-10 minutes)
+4. Create local Kubernetes configuration directory and download EKS config file after cluster is ready. (Should be complete in ~9-10 minutes)
 ```
 $ mkdir ~/.kube && aws s3 cp s3://$S3_BUCKET/$CLUSTER_NAME/config ~/.kube/config
 ```
 
-4. Apply generated auth model:
+5. Apply generated auth model.
 ```
 $ kubectl apply -f https://s3.amazonaws.com/$S3_BUCKET/$CLUSTER_NAME/aws-auth-cm.json
 ```
 
-5. Test that cluster is active.
+6. Test that cluster is active.
 ```
 $ kubectl get nodes
 ```
