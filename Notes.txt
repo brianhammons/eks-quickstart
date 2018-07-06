@@ -1,0 +1,12 @@
+EKS Cluster Setup:
+1. aws cloudformation create-stack --stack-name eks-demo-stack --template-url https://s3-us-west-2.amazonaws.com/eks-quickstart-demo/v2/eks-quickstart.yaml \ 
+--parameters ParameterKey=ClusterName,ParameterValue=eks-demo ParameterKey=NodeGroupName,ParameterValue=eks-demo-ng ParameterKey=KeyName,ParameterValue=eks-key ParameterKey=S3Bucket,ParameterValue=eks-demo-hammbri \
+--capabilities "CAPABILITY_IAM"
+2. mkdir ~/.kube && aws s3 cp s3://eks-demo-hammbri/eks-demo/config ~/.kube/config
+3. kubectl apply -f https://s3.amazonaws.com/eks-demo-hammbri/eks-demo/aws-auth-cm.json
+4. kubectl get nodes
+
+Envoy/Contour Setup:
+1. kubectl apply -f https://j.hept.io/contour-deployment-rbac
+2. kubectl apply -f https://j.hept.io/contour-kuard-example
+3. kubectl get -n heptio-contour service contour -o wide

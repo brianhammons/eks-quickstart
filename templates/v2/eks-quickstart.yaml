@@ -401,6 +401,9 @@ Resources:
             - s3:GetObject
             - s3:PutObject
             - s3:GetObjectVersion
+            - s3:CreateBucket
+            - s3:DeleteBucket
+            - s3:ListBucket
             Resource: "*"
 
   EKSCluster:
@@ -549,23 +552,9 @@ Resources:
               "sed -i s,DNS_CLUSTER_IP,$DNS_CLUSTER_IP,g  /etc/systemd/system/kubelet.service", "\n",
               "sed -i s,CERTIFICATE_AUTHORITY_FILE,$CA_CERTIFICATE_FILE_PATH,g /var/lib/kubelet/kubeconfig" , "\n",
               "sed -i s,CLIENT_CA_FILE,$CA_CERTIFICATE_FILE_PATH,g  /etc/systemd/system/kubelet.service" , "\n",
-              "KUBE_PATH=~/kube", "\n",
-              "mkdir -p $KUBE_PATH", "\n",
-              "MASTER_CA=$(cat /tmp/describe_cluster_result.json | grep certificateAuthorityData | awk '{print $2}' | sed 's/[,\"]//g')", "\n",
-              "KUBELET_CONTEXT=kubelet", "\n",
-              "AWS_CONTEXT=aws", "\n",
-              "AUTH_ROLE=ARN", "\n",
-              "curl -o $KUBE_PATH/aws-auth-cm.yaml https://amazon-eks.s3-us-west-2.amazonaws.com/1.10.3/2018-06-05/aws-auth-cm.yaml", "\n",
-              "cp /var/lib/kubelet/kubeconfig $KUBE_PATH", "\n",
-              "sed -i s,$KUBELET_CONTEXT,$AWS_CONTEXT,g $KUBE_PATH/kubeconfig", "\n",
-              "sed -i s,$CA_CERTIFICATE_FILE_PATH,$MASTER_CA,g $KUBE_PATH/kubeconfig", "\n",
-              "sed -i s,$AUTH_ROLE,{ !GetAtt NodeInstanceRole.Arn },g $KUBE_PATH/aws-auth-cm.yaml", "\n",
               "aws s3 mb s3://", { Ref: S3Bucket },"", "\n",
               "aws s3api put-bucket-versioning --bucket ", { Ref: S3Bucket }," --versioning-configuration Status=Enabled", "\n",
-              "aws s3 cp $KUBE_PATH/kubeconfig s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/kubeconfig", "\n",
-              "aws s3 cp $KUBE_PATH/aws-auth-cm.yaml s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/aws-auth-cm.yaml", "\n",
-              "rm $KUBE_PATH/kubeconfig", "\n",
-              "rm $KUBE_PATH/aws-auth-cm.yaml", "\n",
+              "aws s3 cp /tmp/describe_cluster_result.json s3://", { Ref: S3Bucket },"/", { Ref: ClusterName },"/describe_cluster_result.json", "\n",
               "systemctl daemon-reload", "\n",
               "systemctl restart kubelet", "\n",
               "/opt/aws/bin/cfn-signal -e $? ",
@@ -575,6 +564,105 @@ Resources:
             ]
           ]
     DependsOn: [EKSCluster]
+
+  EKSClusterLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-create-eks-cluster
+      Description: Custom resource created through cloudformation to spin up EKS cluster.
+      Handler: index.lambda_handler
+      Runtime: python2.7
+      Timeout: 5
+      Role: !GetAtt AWSServiceRoleForAmazonEKS.Arn
+      Code:
+        ZipFile: |
+            from __future__ import print_function
+            import cfnresponse
+            import boto3, os, zipfile, httplib, uuid, urlparse, json
+            from botocore.client import Config
+            s3 = boto3.client('s3')
+            s3Obj = boto3.resource('s3')
+
+            def send_response(request, response, status=None, reason=None):
+                if status is not None:
+                    response['Status'] = status  
+                if reason is not None:
+                    response['Reason'] = reason
+                if 'ResponseURL' in request and request['ResponseURL']:
+                    url = urlparse.urlparse(request['ResponseURL'])
+                    body = json.dumps(response)
+                    https = httplib.HTTPSConnection(url.hostname)
+                    https.request('PUT', url.path+'?'+url.query, body)
+                return response
+            
+            def lambda_handler(event, context):
+                response = {
+                    'StackId': event['StackId'],
+                    'RequestId': event['RequestId'],
+                    'LogicalResourceId': event['LogicalResourceId'],
+                    'Status': 'SUCCESS'
+                }
+                print(json.dumps(event))
+                if 'PhysicalResourceId' in event:
+                    response['PhysicalResourceId'] = event['PhysicalResourceId']
+                else:
+                    response['PhysicalResourceId'] = str(uuid.uuid4())
+
+                s3TargetBucket=event['ResourceProperties']['S3Bucket']
+                ClusterName=event['ResourceProperties']['ClusterName']
+                INSTANCE_ARN=event['ResourceProperties']['RoleArn']
+                CLUSTER_INFO = ClusterName + "/describe_cluster_result.json"
+                S3Prefix = ClusterName + "/"
+
+                if event['RequestType'] == 'Delete':
+                    objects_to_delete = s3.list_objects_v2(Bucket=s3TargetBucket, Prefix=S3Prefix)
+                    delete_keys = {'Objects' : []}
+                    delete_keys['Objects'] = [{'Key' : k} for k in [obj['Key'] for obj in objects_to_delete.get('Contents', [])]]
+                    s3.delete_objects(Bucket=s3TargetBucket, Delete=delete_keys)
+                    return send_response(event, response)
+
+                try:
+                    content_object = s3Obj.Object(str(s3TargetBucket), str(CLUSTER_INFO))
+                    file_content = content_object.get()['Body'].read().decode('utf-8')
+                    json_content = json.loads(file_content)
+                    CLUSTER_ENDPOINT = str(json_content['endpoint'])
+                    CLUSTER_CERT = str(json_content['certificateAuthorityData'])
+                    
+                    print(json_content)
+
+                    config_map = dict({
+                    "apiVersion": "v1",
+                    "kind": "ConfigMap",
+                    "metadata": {"name": "aws-auth", "namespace": "kube-system"},
+                    "data": { "mapRoles": "- rolearn: " + INSTANCE_ARN + "\n  username: system:node:{{EC2PrivateDNSName}}\n  groups:\n    - system:bootstrappers\n    - system:nodes\n"}})
+
+                    kube_config = dict({ "apiVersion": "v1", "clusters": [{"cluster": {"server": CLUSTER_ENDPOINT, "certificate-authority-data": CLUSTER_CERT}, "name": "kubernetes"}],
+                    "contexts": [{"context": {"cluster": "kubernetes", "user": "aws"}, "name": "aws" }],
+                    "current-context": "aws",
+                    "kind": "Config",
+                    "preferences": {},
+                    "users": [{"name": "aws", "user": { "exec": {"apiVersion": "client.authentication.k8s.io/v1alpha1", "command": "heptio-authenticator-aws", "args": ["token", "-i", ClusterName]}}}]}) 
+                    
+                    s3.put_object(Body=json.dumps(config_map), Bucket=s3TargetBucket, Key=ClusterName + "/aws-auth-cm.json")
+                    s3.put_object(Body=json.dumps(kube_config), Bucket=s3TargetBucket, Key=ClusterName + "/config")
+                    
+                    response['Data'] = {'s3Success': 'true'}
+                    response['Reason'] = 'Json added to S3'
+                except Exception as E:
+                  response['Reason'] = 'Event Failed - See CloudWatch logs for the Lamba function backing the custom resource for details'
+                print('Response Text: ' + str(response))
+                return send_response(event, response)
+    DependsOn: [NodeGroup]
+
+  EKSClusterConfig:
+    Type: Custom::EKSClusterLambda
+    Properties:
+      ServiceToken: !GetAtt EKSClusterLambda.Arn
+      ClusterName: !Ref ClusterName
+      Region: !Ref "AWS::Region"
+      RoleArn: !GetAtt NodeInstanceRole.Arn
+      S3Bucket: !Ref S3Bucket
+    DependsOn: [NodeGroup]
 
 Outputs:
   SubnetIds:

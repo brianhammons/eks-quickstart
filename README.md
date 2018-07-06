@@ -1,30 +1,33 @@
-# eks-sandbox
-The EKS Quickstart will quickly spin up an EKS cluster and worker nodes through cloudformation. This requires AWS CLI version 1.15.32, kubectl version 1.10 and the Heptio authenticator.
+# eks-quickstart
+The EKS Quickstart will quickly spin up an EKS cluster and worker nodes through cloudformation. This requires AWS CLI version 1.15.32, kubectl version 1.10 and the Heptio authenticator. Please find details in the EKS Getting Started section of the [User Guide](https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html).
 
 Click [here](https://us-west-2.console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=eks-quickstart&templateURL=https://s3-us-west-2.amazonaws.com/eks-quickstart-demo/v2/eks-quickstart.template) to deploy the cloudformation template in the AWS Console.
 
-QuickStart Proposed Steps:
+QuickStart Setup Steps:
 
-1. Install CLI Requirements
+1. Create an S3 Bucket to store cluster configuration files.
 
-	Install or update awscli
-	Install or update kubectl
-	Install or update heptio authenticator
+    $ export S3_BUCKET=eks-state-store-$(cat /dev/urandom | LC_ALL=C tr -dc "[:alpha:]" | tr '[:upper:]' '[:lower:]' | head -c 32)
+    $ export EKS_STATE_STORE=s3://${S3_BUCKET}
+    $ aws s3 mb $EKS_STATE_STORE
+    $ aws s3api put-bucket-versioning --bucket $S3_BUCKET --versioning-configuration Status=Enabled
 
-2. Configure Cluster State Storage
+2. You may run the cloudformation template from the link above or using the command line. For example, the following will create and provision a complete EKS cluster called eks-demo
 
-	Using S3, we will store the config files that will represent the state of your cluster. This bucket will become the source of truth for our cluster configuration. The following steps create a randomly generated name for this bucket but if you need to send these files to a pre-generated bucket or use a custom naming convention, you can modify the S3_BUCKET variable.
+	$ aws cloudformation create-stack --stack-name eks-demo-stack --template-url https://s3-us-west-2.amazonaws.com/eks-quickstart-demo/v2/eks-quickstart.yaml \ 
+	--parameters ParameterKey=ClusterName,ParameterValue=eks-demo ParameterKey=NodeGroupName,ParameterValue=eks-demo-nodegroup ParameterKey=KeyName,ParameterValue=eks-demo-key ParameterKey=S3Bucket,ParameterValue=$S3_BUCKET \
+	--capabilities "CAPABILITY_IAM"
 
-3. Create Service Account and VPC through CF
+Note: EC2 Nodes require existing ssh keypair for access. You can create one and download it from the AWS EC2 console.
 
-	This can be done as one step through cloudformation w/in console or aws cli.
+3. Create local Kubernetes configuration directory and download EKS config file after cluster is ready. (Should be complete in ~9-10 minutes)
 
-4. Create EKS Cluster
+	$ mkdir ~/.kube && aws s3 cp s3://eks-demo-hammbri/eks-demo/config ~/.kube/config
 
-	This can be done through eks api or new aws cli.
+4. Apply generated auth model:
 
-5. Create Nodes
+	$ kubectl apply -f https://s3.amazonaws.com/eks-demo-hammbri/eks-demo/aws-auth-cm.json
 
-	This can be done through cloudformation w/in console or aws cli.
+5. Test that cluster is active.
 
-6. Install Sample App (Prometheus/KubeUI) through kubectl.
+	$ kubectl get nodes
