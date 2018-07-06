@@ -14,9 +14,7 @@ QuickStart Setup Steps:
 
 2. You may run the cloudformation template from the link above or using the command line. For example, the following will create and provision a complete EKS cluster called eks-demo
 
-	$ aws cloudformation create-stack --stack-name eks-demo-stack --template-url https://s3-us-west-2.amazonaws.com/eks-quickstart-demo/v2/eks-quickstart.yaml \ 
-	--parameters ParameterKey=ClusterName,ParameterValue=eks-demo ParameterKey=NodeGroupName,ParameterValue=eks-demo-nodegroup ParameterKey=KeyName,ParameterValue=eks-demo-key ParameterKey=S3Bucket,ParameterValue=$S3_BUCKET \
-	--capabilities "CAPABILITY_IAM"
+	$ aws cloudformation create-stack --stack-name eks-demo-stack-2 --template-url https://s3-us-west-2.amazonaws.com/eks-quickstart-demo/v2/eks-quickstart.yaml --parameters ParameterKey=ClusterName,ParameterValue=eks-demo-2 ParameterKey=NodeGroupName,ParameterValue=eks-demo-nodegroup-2 ParameterKey=KeyName,ParameterValue=eks-demo-key ParameterKey=S3Bucket,ParameterValue=$S3_BUCKET --capabilities "CAPABILITY_IAM"
 
 Note: EC2 Nodes require existing ssh keypair for access. You can create one and download it from the AWS EC2 console.
 
