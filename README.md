@@ -7,7 +7,7 @@ QuickStart Setup Steps:
 
 1. Create an S3 Bucket to store cluster configuration files.
 ```
-* Enter name of s3 bucket you would like to store your configurations in. 
+* Enter name of unique s3 bucket you would like to store your configurations in. 
 $ export S3_BUCKET=example-state-store
 $ export EKS_STATE_STORE=s3://${S3_BUCKET}
 $ aws s3 mb $EKS_STATE_STORE
