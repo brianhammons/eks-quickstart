@@ -28,7 +28,8 @@ $ aws cloudformation create-stack --stack-name $CLUSTER_NAME-stack \
 
 4. Create local Kubernetes configuration directory and download EKS config file after cluster is ready. (Should be complete in ~9-10 minutes)
 ```
-$ mkdir ~/.kube && aws s3 cp s3://$S3_BUCKET/$CLUSTER_NAME/config ~/.kube/config
+$ mkdir ~/.kube
+$ aws s3 cp s3://$S3_BUCKET/$CLUSTER_NAME/config ~/.kube/config
 ```
 
 5. Apply generated auth model.
