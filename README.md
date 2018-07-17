@@ -6,13 +6,10 @@ Click [here](https://us-west-2.console.aws.amazon.com/cloudformation/home?#/stac
 
 QuickStart Setup Steps:
 
-1. Create an S3 Bucket to store cluster configuration files.
+1. Create an S3 Bucket to store cluster configuration files. May auto-generate with command below or enter your own unique bucket name.
 ```
-* Enter name of unique s3 bucket you would like to store your configurations in. 
-$ export S3_BUCKET=example-state-store
+$ export S3_BUCKET=eks-state-store-$(cat /dev/urandom | LC_ALL=C tr -dc "[:alpha:]" | tr '[:upper:]' '[:lower:]' | head -c 32)
 $ export EKS_STATE_STORE=s3://${S3_BUCKET}
-$ aws s3 mb $EKS_STATE_STORE
-$ aws s3api put-bucket-versioning --bucket $S3_BUCKET --versioning-configuration Status=Enabled
 ```
 
 2. Set configuration variables for the EKS cluster name and ssh key for worker node access.
