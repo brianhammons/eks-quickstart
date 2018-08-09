@@ -31,18 +31,18 @@ Parameters:
     Type: 'AWS::EC2::KeyPair::KeyName'
     ConstraintDescription: Can contain only ASCII characters.
 
-  NodeImageId:
-    Type: AWS::EC2::Image::Id
-    Description: AMI id for the node instances. Id "ami-73a6e20b" is in us-west-2 and "ami-dea4d5a1" is in us-east-1. Default is set to us-east-1.
-    Default: ami-73a6e20b
-    AllowedValues:
-    - ami-73a6e20b
-    - ami-dea4d5a1
+  #NodeImageId:
+  #  Type: AWS::EC2::Image::Id
+  #  Description: AMI id for the node instances. Id "ami-0ea01e1d1dea65b5c" is in us-west-2 and "ami-0fef2bff3c2e2da93" is in us-east-1. Default is set to us-east-1.
+  #  Default: ami-0fef2bff3c2e2da93
+  #  AllowedValues:
+  #  - ami-0fef2bff3c2e2da93
+  #  - ami-0ea01e1d1dea65b5c
 
   NodeInstanceType:
     Description: EC2 instance type for the node instances
     Type: String
-    Default: c5.large
+    Default: t2.medium
     AllowedValues:
     - t2.small
     - t2.medium
@@ -120,6 +120,11 @@ Parameters:
     Type: String
 
 Mappings:
+  NodeImageId:
+    us-east-1:
+      ami: ami-0fef2bff3c2e2da93
+    us-west-2:
+      ami: ami-0ea01e1d1dea65b5c
   MaxPodsPerNode:
     c4.large:
       MaxPods: 29
@@ -256,7 +261,7 @@ Metadata:
           - NodeAutoScalingGroupMinSize
           - NodeAutoScalingGroupMaxSize
           - NodeInstanceType
-          - NodeImageId
+          - { "Fn::FindInMap": [ NodeImageId, { Ref: "AWS::Region" }, ami ] }
           - KeyName
   
 Resources:
@@ -400,14 +405,10 @@ Resources:
             - logs:PutLogEvents
             - s3:GetObject
             - s3:PutObject
-            - s3:DeleteObject
-            - s3:PutObjectAcl
             - s3:GetObjectVersion
             - s3:CreateBucket
             - s3:DeleteBucket
             - s3:ListBucket
-            - s3:PutBucketPolicy
-            - s3:PutBucketAcl
             Resource: "*"
 
   EKSCluster:
@@ -522,7 +523,7 @@ Resources:
     Properties:
       AssociatePublicIpAddress: 'true'
       IamInstanceProfile: !Ref NodeInstanceProfile
-      ImageId: !Ref NodeImageId
+      ImageId: { "Fn::FindInMap": [ NodeImageId, { Ref: "AWS::Region" }, ami ] }
       InstanceType: !Ref NodeInstanceType
       KeyName: !Ref KeyName
       SecurityGroups:
@@ -621,7 +622,7 @@ Resources:
                 if event['RequestType'] == 'Delete':
                     objects_to_delete = s3.list_objects_v2(Bucket=s3TargetBucket, Prefix=S3Prefix)
                     delete_keys = {'Objects' : []}
-                    delete_keys['Objects'] = [{'Key' : S3Prefix}]
+                    delete_keys['Objects'] = [{'Key' : k} for k in [obj['Key'] for obj in objects_to_delete.get('Contents', [])]]
                     s3.delete_objects(Bucket=s3TargetBucket, Delete=delete_keys)
                     return send_response(event, response)
 
@@ -669,12 +670,6 @@ Resources:
     DependsOn: [NodeGroup]
 
 Outputs:
-  ClusterName:
-    Description: Name of EKS Cluster
-    Value: !Ref ClusterName
-  S3BucketName:
-    Description: Name of S3 bucket used to store cluster configuration
-    Value: !Ref S3Bucket
   SubnetIds:
     Description: All subnets in the VPC
     Value: !Join [ ",", [ !Ref Subnet01, !Ref Subnet02, !Ref Subnet03 ] ]
