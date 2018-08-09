@@ -20,7 +20,7 @@ $ export SSH_KEY=eks-demo-key
 
 3. You may run the cloudformation template from the link above or using the command line.
 ```
-$ aws cloudformation create-stack --stack-name $CLUSTER_NAME-stack \
+$ aws cloudformation create-stack --stack-name $CLUSTER_NAME \
 --template-url https://s3-us-west-2.amazonaws.com/eks-quickstart-demo/v3/eks-quickstart.yaml \
 --parameters ParameterKey=ClusterName,ParameterValue=$CLUSTER_NAME ParameterKey=NodeGroupName,ParameterValue=$CLUSTER_NAME-nodegroup ParameterKey=KeyName,ParameterValue=$SSH_KEY ParameterKey=S3Bucket,ParameterValue=$S3_BUCKET \
 --capabilities "CAPABILITY_IAM"
