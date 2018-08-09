@@ -31,6 +31,14 @@ Parameters:
     Type: 'AWS::EC2::KeyPair::KeyName'
     ConstraintDescription: Can contain only ASCII characters.
 
+  #NodeImageId:
+  #  Type: AWS::EC2::Image::Id
+  #  Description: AMI id for the node instances. Id "ami-0ea01e1d1dea65b5c" is in us-west-2 and "ami-0fef2bff3c2e2da93" is in us-east-1. Default is set to us-east-1.
+  #  Default: ami-0fef2bff3c2e2da93
+  #  AllowedValues:
+  #  - ami-0fef2bff3c2e2da93
+  #  - ami-0ea01e1d1dea65b5c
+
   NodeInstanceType:
     Description: EC2 instance type for the node instances
     Type: String
