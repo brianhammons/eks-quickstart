@@ -1,5 +1,4 @@
 # EKS Quickstart Guide 
-### This is a WIP, feel free to contribute directly and enter a PR.
 The EKS Quickstart will quickly spin up an EKS cluster and worker nodes through cloudformation. This requires AWS CLI version 1.15.32, kubectl version 1.10 and the Heptio authenticator. Please find details in the EKS Getting Started section of the [User Guide](https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html).
 
 Click [here](https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=eks-quickstart&templateURL=https://s3-us-west-2.amazonaws.com/eks-quickstart-demo/v3/eks-quickstart.yaml) to deploy the cloudformation template in the AWS Console.
@@ -29,7 +28,7 @@ $ aws cloudformation create-stack --stack-name $CLUSTER_NAME \
 4. Create local Kubernetes configuration directory and download EKS config file after cluster is ready. (Should be complete in ~9-10 minutes)
 ```
 $ aws s3 cp s3://$S3_BUCKET/$CLUSTER_NAME/config $HOME/.kube/$CLUSTER_NAME/config
-$ export KUBECONFIG=$KUBECONFIG:$HOME/.kube/$CLUSTER_NAME/config
+$ export KUBECONFIG=$HOME/.kube/$CLUSTER_NAME/config
 $ kubectl config use-context aws
 ```
 
