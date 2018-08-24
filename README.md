@@ -28,7 +28,7 @@ $ aws cloudformation create-stack --stack-name $CLUSTER_NAME \
 4. Create local Kubernetes configuration directory and download EKS config file after cluster is ready. (Should be complete in ~9-10 minutes)
 ```
 $ aws s3 cp s3://$S3_BUCKET/$CLUSTER_NAME/config $HOME/.kube/$CLUSTER_NAME/config
-$ export KUBECONFIG=$HOME/.kube/$CLUSTER_NAME/config
+$ export KUBECONFIG=$KUBECONFIG:$HOME/.kube/$CLUSTER_NAME/config
 $ kubectl config use-context aws
 ```
 
