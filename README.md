@@ -5,7 +5,7 @@ Click [here](https://console.aws.amazon.com/cloudformation/home?#/stacks/new?sta
 
 QuickStart Setup Steps:
 
-1. 
+1. Generate EKS cluster name.
 ```
 $ export CLUSTER_NAME=eks-demo-$(cat /dev/urandom | LC_ALL=C tr -dc "[:alpha:]" | tr '[:upper:]' '[:lower:]' | head -c 8)
 ```
