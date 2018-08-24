@@ -14,7 +14,8 @@ $ export EKS_STATE_STORE=s3://${S3_BUCKET}
 2. Set configuration variables for the EKS cluster name and ssh key for worker node access.
 ```
 $ export CLUSTER_NAME=eks-demo-$(cat /dev/urandom | LC_ALL=C tr -dc "[:alpha:]" | tr '[:upper:]' '[:lower:]' | head -c 8)
-$ export SSH_KEY=eks-demo-key
+$ export SSH_KEY=$CLUSTER_NAME-keypair
+$ aws ec2 create-key-pair --key-name $SSH_KEY
 ```
 
 3. You may run the cloudformation template from the link above or using the command line.
