@@ -13,7 +13,6 @@ $ export CLUSTER_NAME=eks-demo-$(cat /dev/urandom | LC_ALL=C tr -dc "[:alpha:]" 
 2. Create an S3 Bucket to store cluster configuration files.
 ```
 $ export S3_BUCKET=state-store-$CLUSTER_NAME
-$ export EKS_STATE_STORE=s3://${S3_BUCKET}
 ```
 
 3. Generate ssh key for worker node access.
@@ -34,7 +33,6 @@ $ aws cloudformation create-stack --stack-name $CLUSTER_NAME \
 ```
 $ aws s3 cp s3://$S3_BUCKET/$CLUSTER_NAME/config $HOME/.kube/$CLUSTER_NAME/config
 $ export KUBECONFIG=$KUBECONFIG:$HOME/.kube/$CLUSTER_NAME/config
-$ kubectl config use-context aws
 ```
 
 6. Apply generated auth model.
