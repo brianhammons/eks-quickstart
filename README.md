@@ -5,20 +5,24 @@ Click [here](https://console.aws.amazon.com/cloudformation/home?#/stacks/new?sta
 
 QuickStart Setup Steps:
 
-1. Create an S3 Bucket to store cluster configuration files. May auto-generate with command below or enter your own unique bucket name.
+1. 
 ```
-$ export S3_BUCKET=eks-state-store-$(cat /dev/urandom | LC_ALL=C tr -dc "[:alpha:]" | tr '[:upper:]' '[:lower:]' | head -c 32)
+$ export CLUSTER_NAME=eks-demo-$(cat /dev/urandom | LC_ALL=C tr -dc "[:alpha:]" | tr '[:upper:]' '[:lower:]' | head -c 8)
+```
+
+2. Create an S3 Bucket to store cluster configuration files.
+```
+$ export S3_BUCKET=state-store-$CLUSTER_NAME
 $ export EKS_STATE_STORE=s3://${S3_BUCKET}
 ```
 
-2. Set configuration variables for the EKS cluster name and ssh key for worker node access.
+3. Generate ssh key for worker node access.
 ```
-$ export CLUSTER_NAME=eks-demo-$(cat /dev/urandom | LC_ALL=C tr -dc "[:alpha:]" | tr '[:upper:]' '[:lower:]' | head -c 8)
 $ export SSH_KEY=$CLUSTER_NAME-keypair
-$ aws ec2 create-key-pair --key-name $SSH_KEY
+$ mkdir $HOME/.ssh/ | aws ec2 create-key-pair --key-name $SSH_KEY >> $HOME/.ssh/$SSH_KEY.pem
 ```
 
-3. You may run the cloudformation template from the link above or using the command line.
+4. You may run the cloudformation template from the link above or using the command line.
 ```
 $ aws cloudformation create-stack --stack-name $CLUSTER_NAME \
 --template-url https://s3-us-west-2.amazonaws.com/eks-quickstart-demo/eks-quickstart.yaml \
@@ -26,20 +30,20 @@ $ aws cloudformation create-stack --stack-name $CLUSTER_NAME \
 --capabilities "CAPABILITY_IAM"
 ```	
 
-4. Create local Kubernetes configuration directory and download EKS config file after cluster is ready. (Should be complete in ~9-10 minutes)
+5. Create local Kubernetes configuration directory and download EKS config file after cluster is ready. (Should be complete in ~9-10 minutes)
 ```
 $ aws s3 cp s3://$S3_BUCKET/$CLUSTER_NAME/config $HOME/.kube/$CLUSTER_NAME/config
 $ export KUBECONFIG=$KUBECONFIG:$HOME/.kube/$CLUSTER_NAME/config
 $ kubectl config use-context aws
 ```
 
-5. Apply generated auth model.
+6. Apply generated auth model.
 ```
 $ aws s3 cp s3://$S3_BUCKET/$CLUSTER_NAME/aws-auth-cm.json $HOME/.kube/$CLUSTER_NAME/aws-auth-cm.json
 $ kubectl apply -f $HOME/.kube/$CLUSTER_NAME/aws-auth-cm.json
 ```
 
-6. Test that cluster is active.
+7. Test that cluster is active.
 ```
 $ kubectl get nodes
 ```
