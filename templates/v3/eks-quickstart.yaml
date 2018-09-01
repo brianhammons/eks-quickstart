@@ -31,14 +31,6 @@ Parameters:
     Type: 'AWS::EC2::KeyPair::KeyName'
     ConstraintDescription: Can contain only ASCII characters.
 
-  #NodeImageId:
-  #  Type: AWS::EC2::Image::Id
-  #  Description: AMI id for the node instances. Id "ami-0ea01e1d1dea65b5c" is in us-west-2 and "ami-0fef2bff3c2e2da93" is in us-east-1. Default is set to us-east-1.
-  #  Default: ami-0fef2bff3c2e2da93
-  #  AllowedValues:
-  #  - ami-0fef2bff3c2e2da93
-  #  - ami-0ea01e1d1dea65b5c
-
   NodeInstanceType:
     Description: EC2 instance type for the node instances
     Type: String
@@ -646,7 +638,7 @@ Resources:
                     "current-context": "aws",
                     "kind": "Config",
                     "preferences": {},
-                    "users": [{"name": "aws", "user": { "exec": {"apiVersion": "client.authentication.k8s.io/v1alpha1", "command": "heptio-authenticator-aws", "args": ["token", "-i", ClusterName]}}}]}) 
+                    "users": [{"name": "aws", "user": { "exec": {"apiVersion": "client.authentication.k8s.io/v1alpha1", "command": "aws-iam-authenticator", "args": ["token", "-i", ClusterName]}}}]}) 
                     
                     s3.put_object(Body=json.dumps(config_map), Bucket=s3TargetBucket, Key=ClusterName + "/aws-auth-cm.json")
                     s3.put_object(Body=json.dumps(kube_config), Bucket=s3TargetBucket, Key=ClusterName + "/config")
@@ -670,6 +662,9 @@ Resources:
     DependsOn: [NodeGroup]
 
 Outputs:
+  ClusterName:
+    Description: Name of EKS Cluster
+    Value: !Ref ClusterName
   SubnetIds:
     Description: All subnets in the VPC
     Value: !Join [ ",", [ !Ref Subnet01, !Ref Subnet02, !Ref Subnet03 ] ]
@@ -685,4 +680,9 @@ Outputs:
   NodeInstanceRole:
     Description: The node instance role
     Value: !GetAtt NodeInstanceRole.Arn
-
+  ConfigS3Bucket:
+    Description: The S3 bucket where cluster config is stored
+    Value: !Ref S3Bucket
+  KubeConfig:
+    Description: Kubeconfig S3 location
+    Value: !Join [ "/", [ "s3:/", !Ref S3Bucket, !Ref ClusterName, "config" ] ]
