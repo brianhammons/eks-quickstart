@@ -18,7 +18,7 @@ export S3_BUCKET=state-store-$CLUSTER_NAME
 3. Generate ssh key for worker node access.
 ```
 export SSH_KEY=$CLUSTER_NAME-keypair
-mkdir $HOME/.ssh/ | aws ec2 create-key-pair --key-name $SSH_KEY >> $HOME/.ssh/$SSH_KEY.pem
+mkdir ~/.ssh | aws ec2 create-key-pair --key-name $SSH_KEY >> ~/.ssh/$SSH_KEY.pem
 ```
 
 4. You may run the cloudformation template from the link above or using the command line.
