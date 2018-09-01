@@ -7,23 +7,23 @@ QuickStart Setup Steps:
 
 1. Generate EKS cluster name.
 ```
-$ export CLUSTER_NAME=eks-demo-$(cat /dev/urandom | LC_ALL=C tr -dc "[:alpha:]" | tr '[:upper:]' '[:lower:]' | head -c 8)
+export CLUSTER_NAME=eks-demo-$(cat /dev/urandom | LC_ALL=C tr -dc "[:alpha:]" | tr '[:upper:]' '[:lower:]' | head -c 8)
 ```
 
 2. Create an S3 Bucket to store cluster configuration files.
 ```
-$ export S3_BUCKET=state-store-$CLUSTER_NAME
+export S3_BUCKET=state-store-$CLUSTER_NAME
 ```
 
 3. Generate ssh key for worker node access.
 ```
-$ export SSH_KEY=$CLUSTER_NAME-keypair
-$ mkdir $HOME/.ssh/ | aws ec2 create-key-pair --key-name $SSH_KEY >> $HOME/.ssh/$SSH_KEY.pem
+export SSH_KEY=$CLUSTER_NAME-keypair
+mkdir $HOME/.ssh/ | aws ec2 create-key-pair --key-name $SSH_KEY >> $HOME/.ssh/$SSH_KEY.pem
 ```
 
 4. You may run the cloudformation template from the link above or using the command line.
 ```
-$ aws cloudformation create-stack --stack-name $CLUSTER_NAME \
+aws cloudformation create-stack --stack-name $CLUSTER_NAME \
 --template-url https://s3-us-west-2.amazonaws.com/eks-quickstart-demo/eks-quickstart.yaml \
 --parameters ParameterKey=ClusterName,ParameterValue=$CLUSTER_NAME ParameterKey=NodeGroupName,ParameterValue=$CLUSTER_NAME-nodegroup ParameterKey=KeyName,ParameterValue=$SSH_KEY ParameterKey=S3Bucket,ParameterValue=$S3_BUCKET \
 --capabilities "CAPABILITY_IAM"
@@ -31,17 +31,17 @@ $ aws cloudformation create-stack --stack-name $CLUSTER_NAME \
 
 5. Create local Kubernetes configuration directory and download EKS config file after cluster is ready. (Should be complete in ~9-10 minutes)
 ```
-$ aws s3 cp s3://$S3_BUCKET/$CLUSTER_NAME/config $HOME/.kube/$CLUSTER_NAME/config
-$ export KUBECONFIG=$KUBECONFIG:$HOME/.kube/$CLUSTER_NAME/config
+aws s3 cp s3://$S3_BUCKET/$CLUSTER_NAME/config ~/.kube/config-$CLUSTER_NAME
+export KUBECONFIG=$KUBECONFIG:~/.kube/config-$CLUSTER_NAME
 ```
 
 6. Apply generated auth model.
 ```
-$ aws s3 cp s3://$S3_BUCKET/$CLUSTER_NAME/aws-auth-cm.json $HOME/.kube/$CLUSTER_NAME/aws-auth-cm.json
-$ kubectl apply -f $HOME/.kube/$CLUSTER_NAME/aws-auth-cm.json
+aws s3 cp s3://$S3_BUCKET/$CLUSTER_NAME/aws-auth-cm.json ~/.kube/$CLUSTER_NAME/aws-auth-cm.json
+kubectl apply -f ~/.kube/$CLUSTER_NAME/aws-auth-cm.json
 ```
 
 7. Test that cluster is active.
 ```
-$ kubectl get nodes
+kubectl get nodes
 ```
