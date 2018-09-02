@@ -1,7 +1,7 @@
 # EKS Quickstart Guide 
 The EKS Quickstart will quickly spin up an EKS cluster and worker nodes through cloudformation. This will require AWS CLI version 1.15.32+, kubectl version 1.10+ and the aws-iam-authenticator. Please find details in the EKS Getting Started section of the [User Guide](https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html).
 
-Click [here](https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=eks-quickstart&templateURL=https://s3-us-west-2.amazonaws.com/eks-quickstart-demo/v3/eks-quickstart.yaml) to deploy the cloudformation template in the AWS Console.
+Click [here](https://console.aws.amazon.com/cloudformation/home?#/stacks/new?stackName=eks-quickstart&templateURL=https://s3-us-west-2.amazonaws.com/eks-quickstart-demo/eks-quickstart.yaml) to deploy the cloudformation template in the AWS Console.
 
 QuickStart Setup Steps:
 
