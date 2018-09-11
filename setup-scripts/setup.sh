@@ -1,33 +1,20 @@
-# #!/bin/bash
+#!/bin/bash
+# Create bin directory
+mkdir $HOME/bin
 
-# # Install custom model for Amazon EKS
-aws s3 cp --recursive s3://amazon-eks/$1/ ./packages
-echo ""
-echo "Install custom service model"
-export CURRENT_LOCATION=$(pwd)
-aws configure add-model --service-model file://$CURRENT_LOCATION/packages/eks-2017-11-01.normal.json --service-name eks
+# Create .kube folder if not exists
+mkdir $HOME/.kube
 
-# # Install kubectl binary
+# Install kubectl binary
 echo "Install kubectl binary"
-if [ ! -d $HOME/bin ]; then 
-	mkdir $HOME/bin
-fi
+curl -o kubectl https://amazon-eks.s3-us-west-2.amazonaws.com/1.10.3/2018-07-26/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+cp ./kubectl $HOME/bin/kubectl && export PATH=$HOME/bin:$PATH
+echo 'export PATH=$HOME/bin:$PATH' >> ~/.bashrc
 
-# # Create .kube folder if not exists
-if [ ! -d $HOME/.kube ]; then 
-	mkdir $HOME/.kube
-fi
-
-# # Alias kube config to preview config
-export OPERATING_SYSTEM=$(echo $(uname) | tr "[:upper:]" "[:lower:]")
-export KUBECTL_PACKAGE="./packages/bin/$OPERATING_SYSTEM/amd64/kubectl"
-chmod +x $KUBECTL_PACKAGE
-cp $KUBECTL_PACKAGE	$HOME/bin/kubectl
-
-# # Alias kube config to preview config
-export HEPTIO_AUTH="./packages/bin/$OPERATING_SYSTEM/amd64/heptio-authenticator-aws"
-chmod +x $HEPTIO_AUTH
-cp $HEPTIO_AUTH	$HOME/bin/heptio-authenticator-aws
-
-export PATH=$HOME/bin:$PATH
-export KUBECONFIG=$KUBECONFIG:~/.kube/config-preview
+# Install aws iam authenticator
+echo "Install aws IAM Authenticator"
+curl -o aws-iam-authenticator https://amazon-eks.s3-us-west-2.amazonaws.com/1.10.3/2018-07-26/bin/linux/amd64/aws-iam-authenticator
+chmod +x ./aws-iam-authenticator
+cp ./aws-iam-authenticator $HOME/bin/aws-iam-authenticator && export PATH=$HOME/bin:$PATH
+echo 'export PATH=$HOME/bin:$PATH' >> ~/.bashrc
