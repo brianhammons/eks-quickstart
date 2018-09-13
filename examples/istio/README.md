@@ -15,22 +15,16 @@ kubectl create -f install/kubernetes/helm/helm-service-account.yaml
 helm init --service-account tiller
 ```
 
-3. Install Istio
-```
-export SSH_KEY=$CLUSTER_NAME-keypair
-mkdir ~/.ssh | aws ec2 create-key-pair --key-name $SSH_KEY >> ~/.ssh/$SSH_KEY.pem
-```
-
-4. Deploy Istio custom resources
+3. Deploy Istio custom resources
 ```
 kubectl apply -f install/kubernetes/helm/istio/templates/crds.yaml
 ```	
 
-5. Edit configmap
+4. Edit configmap
 - Edit install/kubernetes/helm/istio/templates/sidecar-injector-configmap.yaml
 - Delete the first and last lines (which are go template instructions).
 
-6. Install Istio
+5. Install Istio
 ```
 helm install \
 --wait \
@@ -41,22 +35,22 @@ install/kubernetes/helm/istio \
 --set sidecarInjectorWebhook.enabled=false
 ```
 
-7. Install sample app (Bookinfo)
+6. Install sample app (Bookinfo)
 ```
 kubectl apply -f <(istioctl kube-inject -f samples/bookinfo/platform/kube/bookinfo.yaml)
 ```
 
-8. Expose Bookinfo - deploy Gateway resource
+7. Expose Bookinfo - deploy Gateway resource
 ```
 kubectl apply -f samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
-9. Expose Bookinfo - host and port mapping
+8. Expose Bookinfo - host and port mapping
 ```
 $ export INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 $ export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].port}')
 $ export GATEWAY_URL=$INGRESS_HOST:$INGRESS_PORT
 ```
 
-10. Navigate to Bookinfo landing page
+9. Navigate to Bookinfo landing page
 - Browse to http://$GATEWAY_URL/productpage, the Bookinfo landing page. Replace $GATEWAY_URL with the value we just assigned to it or open http://$GATEWAY_URL/productpage.
