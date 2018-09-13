@@ -11,6 +11,17 @@ export PATH=$PWD/bin:$PATH
 ```
 
 2. Configure Helm and Tiller
+- Install Helm (linux)
+```
+sudo snap install helm
+```
+
+- Install Helm (macOS)
+```
+brew install kubernetes-helm
+```
+
+- Configure
 ```
 kubectl create -f install/kubernetes/helm/helm-service-account.yaml
 helm init --service-account tiller
